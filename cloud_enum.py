@@ -48,43 +48,60 @@ def parse_arguments():
                           help='Input file with a single keyword per line.')
 
     # Use included mutations file by default, or let the user provide one
-    parser.add_argument('-m', '--mutations', type=str, action='store',
-                        default=script_path + '/enum_tools/fuzz.txt',
-                        help='Mutations. Default: enum_tools/fuzz.txt')
+    core_group = parser.add_argument_group('Runtime Options')
+    core_group.add_argument('-m', '--mutations', type=str, action='store',
+                            default=script_path + '/enum_tools/fuzz.txt',
+                            help='Mutations. Default: enum_tools/fuzz.txt')
 
-    # Use include container brute-force or let the user provide one
-    parser.add_argument('-b', '--brute', type=str, action='store',
-                        default=script_path + '/enum_tools/fuzz.txt',
-                        help='List to brute-force Azure container names.'
-                        '  Default: enum_tools/fuzz.txt')
+   # Use include container brute-force or let the user provide one
+    core_group.add_argument('-b', '--brute', type=str, action='store',
+                           default=script_path + '/enum_tools/fuzz.txt',
+                           help='List to brute-force Azure container names.'
+                                 '  Default: enum_tools/fuzz.txt')
 
-    parser.add_argument('-t', '--threads', type=int, action='store',
-                        default=5, help='Threads for HTTP brute-force.'
-                        ' Default = 5')
+    core_group.add_argument('-t', '--threads', type=int, action='store',
+                            default=5, help='Threads for HTTP brute-force.'
+                                            ' Default = 5')
 
-    parser.add_argument('-ns', '--nameserver', type=str, action='store',
-                        default='1.1.1.1',
-                        help='DNS server to use in brute-force.')
-    parser.add_argument('-nsf', '--nameserverfile', type=str, 
-                        help='Path to the file containing nameserver IPs')
-    parser.add_argument('-l', '--logfile', type=str, action='store',
-                        help='Appends found items to specified file.')
-    parser.add_argument('-f', '--format', type=str, action='store',
-                        default='text',
-                        help='Format for log file (text,json,csv)'
-                             ' - default: text')
+    core_group.add_argument('-ns', '--nameserver', type=str, action='store',
+                            default='1.1.1.1',
+                            help='DNS server to use in brute-force.')
+    core_group.add_argument('-nsf', '--nameserverfile', type=str,
+                            help='Path to the file containing nameserver IPs')
+    core_group.add_argument('-l', '--logfile', type=str, action='store',
+                            help='Appends found items to specified file.')
+    core_group.add_argument('-f', '--format', type=str, action='store',
+                            default='text',
+                            help='Format for log file (text,json,csv)'
+                                 ' - default: text')
 
-    parser.add_argument('--disable-aws', action='store_true',
-                        help='Disable Amazon checks.')
+    core_group.add_argument('--disable-aws', action='store_true',
+                            help='Disable Amazon checks.')
 
-    parser.add_argument('--disable-azure', action='store_true',
-                        help='Disable Azure checks.')
+    core_group.add_argument('--disable-azure', action='store_true',
+                            help='Disable Azure checks.')
 
-    parser.add_argument('--disable-gcp', action='store_true',
-                        help='Disable Google checks.')
+    core_group.add_argument('--disable-gcp', action='store_true',
+                            help='Disable Google checks.')
 
-    parser.add_argument('-qs', '--quickscan', action='store_true',
-                        help='Disable all mutations and second-level scans')
+    core_group.add_argument('-qs', '--quickscan', action='store_true',
+                            help='Disable all mutations and second-level scans')
+
+    auth_options = parser.add_argument_group('AWS Authentication Options')
+    auth_options.add_argument('--profile',
+                              help='AWS named profile to use. Profile should be present in ~/.aws/credentials',
+                              type=str)
+    auth_options.add_argument('--access-key',
+                              help='AWS access key to use. Also provide the secret key with --secret-key.',
+                              type=str)
+    auth_options.add_argument('--secret-key',
+                              help='AWS secret key to use. Also provide the access key with --access-key.',
+                              type=str)
+    auth_options.add_argument('--session-token',
+                              help='AWS session-token. Also provide the access key with --access-key and the secret '
+                                   'key with --secret-key',
+                              type=str)
+
 
     args = parser.parse_args()
 
@@ -130,6 +147,18 @@ def parse_arguments():
             sys.exit()
         # Set the global in the utils file, where logging needs to happen
         utils.init_logfile(args.logfile, args.format)
+
+    # Validate that access key and secret key are provided
+    if (args.access_key and not args.secret_key) or (not args.access_key and args.secret_key):
+        parser.error('--access-key and --secret-key arguments must both be provided')
+
+    # Validate session token
+    if args.session_token and not args.access_key and not args.secret_key:
+        parser.error('--session-token requires --access-key and --secret-key arguments')
+
+    # Validate that access keys and profile isn't provided together
+    if (args.access_key and args.secret_key) and args.profile:
+        parser.error('Cannot use --access-key/--secret-key and --profile at the same time')
 
     return args
 
