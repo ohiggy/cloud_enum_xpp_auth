@@ -157,7 +157,6 @@ def check_s3_authenticated_multithread(bucket_names):
 def check_s3_authenticated(bucket_name, total_buckets):
     global S3_AUTH_STATUS
     S3_AUTH_STATUS += 1
-    print(f'    {S3_AUTH_STATUS}/{total_buckets} complete...', end='\r')
     try:
         s3_client = boto3.client('s3')
         head_bucket = s3_client.head_bucket(Bucket=bucket_name)
